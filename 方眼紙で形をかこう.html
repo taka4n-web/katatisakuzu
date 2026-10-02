@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>方眼紙で形をかこう</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#fffaf0;--card:#fff;--ink:#2b2b2b;--grid:#bfe3c8;--line:#333;--hi:#e8472b;--accent:#2f7de1;--soft:#e9f1fc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1f24;--card:#262a31;--ink:#f1f1f1;--grid:#3d5a48;--line:#e8e8e8;--hi:#ff7a5c;--accent:#6aa7ff;--soft:#2c3a52}}
+:root[data-theme="dark"]{--bg:#1c1f24;--card:#262a31;--ink:#f1f1f1;--grid:#3d5a48;--line:#e8e8e8;--hi:#ff7a5c;--accent:#6aa7ff;--soft:#2c3a52}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;padding:12px}
+main{max-width:560px;margin:0 auto}
+h1{font-size:20px;margin:4px 0 10px}
+.tabs{display:flex;gap:6px}
+.tabs button{flex:1;padding:10px 4px;font-size:15px;border:2px solid var(--accent);background:var(--card);color:var(--ink);border-radius:10px;font-family:inherit}
+.pn{margin-top:8px}.pn button{border-radius:50%;flex:none;width:44px;height:44px;padding:0;font-size:18px}
+.tabs button.on{background:var(--accent);color:#fff}
+.q{margin:10px 0;padding:8px 12px;background:var(--soft);border-radius:10px;font-size:15px}
+.card{background:var(--card);border-radius:14px;padding:8px;margin-top:8px}
+svg{width:100%;height:auto;display:block}
+.step{margin:10px 0;padding:12px;border-radius:12px;background:var(--card);border-left:6px solid var(--hi);font-size:20px;font-weight:bold;min-height:56px}
+.step small{display:block;font-size:13px;font-weight:normal;opacity:.75;margin-top:4px}
+.nav{display:flex;gap:8px}
+.nav button{flex:1;padding:14px;font-size:18px;border-radius:12px;border:none;font-family:inherit;font-weight:bold}
+#next{background:var(--hi);color:#fff;flex:2}
+#back,#reset{background:var(--soft);color:var(--ink)}
+button:disabled{opacity:.35}
+.dots{display:flex;gap:6px;justify-content:center;margin:6px 0}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--grid)}
+.dots i.d{background:var(--hi)}
+@keyframes draw{to{stroke-dashoffset:0}}
+.cur{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw .8s ease forwards}
+
+main{max-width:1200px}
+header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+header h1{margin:0}header .tabs{flex:1;min-width:260px;max-width:480px}
+.wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:14px;align-items:start;margin-top:8px}
+.board{margin:0}.card svg{max-height:calc(100vh - 110px);margin:0 auto}
+.panel{display:flex;flex-direction:column;gap:2px}
+.panel .q{font-size:17px}.panel .step{font-size:24px;min-height:110px}.panel .step small{font-size:16px}
+.panel .nav button{padding:18px 8px;font-size:20px}
+@media (max-width:700px){.wrap{grid-template-columns:1fr}.card svg{max-height:none}.panel .step{font-size:20px;min-height:56px}}
+</style></head><body><main>
+<header><h1>📐 方眼紙に 形を かこう</h1><div class="tabs" id="tabs"></div></header>
+<div class="wrap">
+ <div class="card board"><svg id="svg" viewBox="0 0 9 8"></svg></div>
+ <div class="panel">
+  <div class="tabs pn" id="pn"></div>
+  <div class="q" id="q"></div>
+  <div class="dots" id="dots"></div>
+  <div class="step" id="step"></div>
+  <div class="nav"><button id="back">もどる</button><button id="next">つぎへ ▶</button><button id="reset">やりなおし</button></div>
+ </div>
+</div>
+</main>
+<script>
+// 座標は方眼のマス目(1マス=1cm)。(x,y) 左上が原点
+const R=(h,w)=>({q:`たて ${h}cm、よこ ${w}cm の 長方形`,steps:[
+ {t:"① たての 線を ひく",n:`上から 下へ ${h}cm`,l:[1,1,1,1+h],lab:h+"cm"},
+ {t:"② よこの 線を ひく",n:`下の 角から 右へ ${w}cm`,l:[1,1+h,1+w,1+h],lab:w+"cm"},
+ {t:"③ もう 1本 よこの 線を ひく",n:`上の 角から 右へ ${w}cm`,l:[1,1,1+w,1],lab:w+"cm"},
+ {t:"④ 最後の たての 線を ひく",n:`上から 下へ ${h}cm`,l:[1+w,1,1+w,1+h],lab:h+"cm"}],
+ rights:[[1,1,1,1],[1,1+h,1,-1],[1+w,1+h,-1,-1],[1+w,1,-1,1]]});
+const Q=s=>{const p=R(s,s);p.q=`1つの へんの 長さが ${s}cm の 正方形`;return p};
+const T=(a,b)=>({q:`${a}cm の へんと ${b}cm の へんの 間に 直角の かどが ある 直角三角形`,steps:[
+ {t:`① ${a}cm の たての 線を ひく`,n:`上から 下へ ${a}cm`,l:[1,1,1,1+a],lab:a+"cm"},
+ {t:`② ${b}cm の よこの 線を ひく`,n:`下の 点から 右へ ${b}cm。ここが 直角!`,l:[1,1+a,1+b,1+a],lab:b+"cm"},
+ {t:"③ 2つの 点を むすぶ",n:"上の 点と 右はしの 点を 定規で むすぶ",l:[1,1,1+b,1+a],lab:""}],
+ rights:[[1,1+a,1,-1]],rightAt:1});
+const SHAPES=[
+ {name:"長方形",probs:[R(3,5),R(2,4),R(4,6),R(5,3),R(2,7)]},
+ {name:"正方形",probs:[Q(4),Q(2),Q(5),Q(3),Q(6)]},
+ {name:"直角三角形",probs:[T(3,4),T(2,5),T(4,6),T(5,3),T(6,4)]}];
+let pi=0;
+const svg=document.getElementById("svg"),NS="http://www.w3.org/2000/svg";
+let si=0,k=0;
+const el=(n,a,p=svg)=>{const e=document.createElementNS(NS,n);for(const x in a)e.setAttribute(x,a[x]);p.appendChild(e);return e};
+function grid(){for(let i=0;i<=9;i++)el("line",{x1:i,y1:0,x2:i,y2:8,stroke:"var(--grid)","stroke-width":.04});
+ for(let j=0;j<=8;j++)el("line",{x1:0,y1:j,x2:9,y2:j,stroke:"var(--grid)","stroke-width":.04})}
+function render(anim=true){
+ const S=SHAPES[si].probs[pi];svg.innerHTML="";grid();
+ S.steps.forEach((s,i)=>{if(i>=k)return;const cur=i===k-1;
+  const [a,b,c,d]=s.l;
+  const ln=el("line",{x1:a,y1:b,x2:c,y2:d,stroke:cur?"var(--hi)":"var(--line)","stroke-width":.1,"stroke-linecap":"round"});
+  const len=Math.hypot(c-a,d-b);
+  if(cur&&anim){ln.style.setProperty("--len",len);ln.classList.add("cur")}
+  if(s.lab){const dx=a===c?(a<3?-.5:.5):0,dy=b===d?(b<3?-.3:.55):0;
+   const t=el("text",{x:(a+c)/2+dx,y:(b+d)/2+dy+.12,"text-anchor":"middle","font-size":.45,fill:"var(--hi)","font-weight":"bold"});t.textContent=s.lab}
+ });
+ // 頂点の点
+ const pts=new Set();S.steps.slice(0,k).forEach(s=>{pts.add(s.l[0]+","+s.l[1]);pts.add(s.l[2]+","+s.l[3])});
+ pts.forEach(p=>{const [x,y]=p.split(",");el("circle",{cx:x,cy:y,r:.11,fill:"var(--accent)"})});
+ // 直角マーク(完成時 / 三角形は②以降)
+ const show=S.rightAt!==undefined?k>S.rightAt:k===S.steps.length;
+ if(show)S.rights.forEach(([x,y,dx,dy])=>{const m=.4;
+  el("path",{d:`M${x+dx*m} ${y} L${x+dx*m} ${y+dy*m} L${x} ${y+dy*m}`,fill:"none",stroke:"var(--accent)","stroke-width":.06})});
+ // 説明
+ const st=document.getElementById("step");
+ st.innerHTML=k===0?"🖊 はじめよう!<small>「つぎへ」を おして 1本ずつ ひいていこう</small>"
+  :k===S.steps.length?`🎉 できた! ${SHAPES[si].name}<small>${S.steps[k-1].t}<br>${S.rights.length>1?"4つの かどが ぜんぶ 直角":"かどが 1つ 直角"}</small>`
+  :`${S.steps[k-1].t}<small>${S.steps[k-1].n}</small>`;
+ // 最初の説明は「次にやること」を見せる
+ if(k<S.steps.length&&k>=0){const nx=S.steps[k];
+  if(k===0)st.innerHTML=`はじめよう!<small>つぎは → ${nx.t}</small>`;
+  else st.innerHTML=`✅ ${S.steps[k-1].t}<small>つぎは → ${nx.t}</small>`}
+ document.getElementById("next").disabled=k>=S.steps.length;
+ document.getElementById("back").disabled=k===0;
+ document.getElementById("dots").innerHTML=S.steps.map((_,i)=>`<i class="${i<k?"d":""}"></i>`).join("");
+}
+function pick(i,p=0){si=i;pi=p;k=0;document.getElementById("q").textContent=`問題${p+1}　${SHAPES[i].probs[p].q}`;
+ document.querySelectorAll("#tabs button").forEach((b,j)=>b.classList.toggle("on",j===i));
+ document.getElementById("pn").innerHTML=SHAPES[i].probs.map((_,j)=>`<button class="${j===p?"on":""}">${j+1}</button>`).join("");
+ document.querySelectorAll("#pn button").forEach((b,j)=>b.onclick=()=>pick(si,j));render(false)}
+document.getElementById("tabs").innerHTML=SHAPES.map((s,i)=>`<button>${s.name}</button>`).join("");
+document.querySelectorAll("#tabs button").forEach((b,i)=>b.onclick=()=>pick(i));
+document.getElementById("next").onclick=()=>{if(k<SHAPES[si].probs[pi].steps.length){k++;render(true)}};
+document.getElementById("back").onclick=()=>{if(k>0){k--;render(false)}};
+document.getElementById("reset").onclick=()=>{k=0;render(false)};
+pick(0);
+</script></body></html>
